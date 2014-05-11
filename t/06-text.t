@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More;
+use Test::More tests=>25;
 use XML::Snap;
 use Data::Dumper;
 
@@ -33,6 +33,38 @@ ok ($list0[0]->istext);
 ok (not $list0[1]->istext);
 is ($list0[0]->gettext, "\nThis is a rather typical example of the use of XML\nfor ");
 
+$xml->bless_text;
+@list0 = $xml->children ();
+is (@list0, 5);
+
+is (ref($list0[0]), 'XML::Snap');
+ok ($list0[0]->istext);
+ok (not $list0[1]->istext);
+is ($list0[0]->gettext, "\nThis is a rather typical example of the use of XML\nfor ");
+
+$xml->bless_text;
+@list0 = $xml->children ();
+is (@list0, 5);
+
+is (ref($list0[0]), 'XML::Snap');
+ok ($list0[0]->istext);
+ok (not $list0[1]->istext);
+is ($list0[0]->gettext, "\nThis is a rather typical example of the use of XML\nfor ");
+
+$xml->unbless_text;
+@list0 = $xml->children ();
+is (@list0, 5);
+@list1 = $xml->elements ();
+is (@list1, 2);
+is (ref($list0[0]), '');
+
+$xml->unbless_text;
+@list0 = $xml->children ();
+is (@list0, 5);
+@list1 = $xml->elements ();
+is (@list1, 2);
+is (ref($list0[0]), '');
+
+
 #diag Dumper($xml2);
 
-done_testing();

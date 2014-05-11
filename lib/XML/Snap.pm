@@ -356,6 +356,49 @@ sub gettext {
    return $$text;
 }
 
+=head2 bless_text
+
+Iterates through the node given, and converts all plain texts into referenced texts.
+
+=cut
+
+sub _bless_text {
+   my $thing = shift;
+   return $thing if ref($thing);
+   my $r = \$thing;
+   bless $r, 'XML::Snap';
+   return $r;
+}
+sub bless_text {
+   my $self = shift;
+   my @children = map {_bless_text($_)} @{$self->{children}};
+   $self->{children} = \@children;
+   foreach my $child ($self->elements) {
+      $child->bless_text;
+   }
+}
+
+=head2 unbless_text
+
+Iterates through the node given, and converts all referenced texts into plain texts.
+
+=cut
+
+sub _unbless_text {
+   my $thing = shift;
+   return $thing if not ref $thing;
+   return $thing unless reftype($thing) eq 'SCALAR';
+   return $$thing;
+}
+sub unbless_text {
+   my $self = shift;
+   my @children = map {_unbless_text($_)} @{$self->{children}};
+   $self->{children} = \@children;
+   foreach my $child ($self->elements) {
+      $child->bless_text;
+   }
+}
+
 =head1 WORKING WITH XML STRUCTURE
 
 =head2 add, add_pretty
