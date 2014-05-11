@@ -5,7 +5,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use XML::Parser;
-use Scalar::Util qw(reftype);
+use Scalar::Util qw(reftype refaddr);
 use Carp;
 
 =head1 NAME
@@ -151,7 +151,6 @@ the C<is> method tests for equality to a given string (it's just a convenience f
 sub name { $_[0]->{name} }
 sub is   { $_[0]->{name} eq $_[1] }
 
-use Scalar::Util qw(refaddr);
 use overload ('""' => sub { $_[0]->name . '(' . ref($_[0]) . ':' . refaddr($_[0]) . ')' },
               '==' => sub { refaddr($_[0]) eq refaddr($_[1]) },
               'eq' => sub { refaddr($_[0]) eq refaddr($_[1]) },
