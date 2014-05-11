@@ -29,9 +29,9 @@ is (@list0, 5);
 is (@list1, 2);
 
 is (ref($list0[0]), 'XML::Snap');
-ok ($list0[0]->is_text);
-ok (not $list0[1]->is_text);
-is ($list0[0]->get_text, "\nThis is a rather typical example of the use of XML\nfor ");
+ok ($list0[0]->istext);
+ok (not $list0[1]->istext);
+is ($list0[0]->gettext, "\nThis is a rather typical example of the use of XML\nfor ");
 
 #diag Dumper($xml2);
 

@@ -194,7 +194,7 @@ sub filter { my $self = shift; $self->copy(@_); }
 sub copy {
    my $self = shift;
 
-   my $ret = XML::Snap->new ($self->name);
+   my $ret = new ($self->name);
    foreach my $key ($self->attrs) {
       $ret->set ($key, $self->get ($key));
    }
@@ -263,8 +263,9 @@ sub set {
 sub unset {
    my ($self, $key) = @_;
    return unless defined $key;
-   $self->{attrs} = grep {$_ ne $key} @{$self->{attrs}};
-   $self->{attrval} = undef;
+   my @attributes = grep {$_ ne $key} @{$self->{attrs}};
+   $self->{attrs} = \@attributes;
+   $self->{attrval}->{$key} = undef;
 }
 
 
@@ -342,7 +343,7 @@ sub attr_order {
    my $self = shift;
    
    my @list = @_;
-   foreach my $a ($self->{attrs}) {
+   foreach my $a (@{$self->{attrs}}) {
       push @list, $a unless grep { $a eq $_ } @list;
    }
    $self->{attrs} = \@list;
@@ -355,7 +356,7 @@ or as scalar references blessed to XML::Snap. Since text may therefore I<not> be
 to handle it with care unless you're sure it's all references (by parsing with C<parse_with_refs>,
 for instance).
 
-=head2 is_text
+=head2 istext
 
 Returns a flag whether a given thing is text or not. "Text" means a scalar or a scalar reference; 
 anything else will not be considered text.
@@ -365,21 +366,21 @@ and you try to call it on a string, your call will die.
 
 =cut
 
-sub is_text {
+sub istext {
    my $thing = shift;
    my $text = shift || $thing;
    return 1 unless ref($text);
    reftype ($text) eq 'SCALAR';
 }
 
-=head2 get_text
+=head2 gettext
 
 Returns the actual text of either a string (which is obviously just the string) or a scalar reference.
 Again, can be called as an instance method if you're sure it's an instance.
 
 =cut
 
-sub get_text {
+sub gettext {
    my $thing = shift;
    my $text = shift || $thing;
    return $text unless ref $text;
@@ -414,7 +415,7 @@ Text is normally added as a simple string, but this can cause problems for consu
 iterator might then return a mixture of unblessed strings and blessed nodes, so you end up having to test for
 blessedness when processing them. For ease of use, you can also add a I<reference> to a string; it will work
 the same in terms of neighboring strings being coalesced, but they'll be stored as blessed string references.
-Then, use is_text or is_node to determine what each element is when iterating through structure.
+Then, use istext or is_node to determine what each element is when iterating through structure.
 
 =cut
 
@@ -424,7 +425,7 @@ sub add {
       my $r = ref $child;
       if (!$r) {
          my $last = ${$self->{children}}[-1];
-         if (defined $last and is_text($last)) {
+         if (defined $last and istext($last)) {
             if (ref $last eq '') {
                ${$self->{children}}[-1] = $last . $child;
             } else {
@@ -439,8 +440,8 @@ sub add {
          my $copy = $child;
          bless $copy, ref $self;
          my $last = ${$self->{children}}[-1];
-         if (defined $last and is_text($last)) {
-            $$copy = get_text($last) . $$copy;
+         if (defined $last and istext($last)) {
+            $$copy = gettext($last) . $$copy;
             ${$self->{children}}[-1] = $copy;
          } else {
             push @{$self->{children}}, $copy;

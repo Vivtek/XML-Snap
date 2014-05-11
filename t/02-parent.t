@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 14;
+use Test::More tests => 15;
 
 use XML::Snap;
 
@@ -35,3 +35,6 @@ ok (not defined $a3);
 $a4 = $this3->ancestor('this');
 is ($a4->name, 'this');
 is ($a4, $p);
+
+$a5 = $this3->root;
+is ($a5, $xml);
