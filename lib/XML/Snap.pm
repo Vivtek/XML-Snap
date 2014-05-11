@@ -152,7 +152,7 @@ sub name { $_[0]->{name} }
 sub is   { $_[0]->{name} eq $_[1] }
 
 use overload ('""' => sub { $_[0]->name . '(' . ref($_[0]) . ':' . refaddr($_[0]) . ')' },
-              '==' => sub { refaddr($_[0]) eq refaddr($_[1]) },
+              '==' => sub { defined(refaddr($_[0])) and defined(refaddr($_[1])) and refaddr($_[0]) eq refaddr($_[1]) },
               'eq' => sub { refaddr($_[0]) eq refaddr($_[1]) },
               '!=' => sub { refaddr($_[0]) ne refaddr($_[1]) });
 
@@ -870,17 +870,18 @@ Returns a list of XML snippets that meet the search criteria.
 
 =cut
 
+sub _test_item {
+   my ($self, $name, $attr, $val) = @_;
+   return 0 unless not defined $name or $self->is($name);
+   return 1 unless defined $attr;
+   return $self->attr_eq ($attr, $val);
+}
+
 sub all {
    my ($self, $name, $attr, $val) = @_;
    my @retlist = ();
    foreach my $child ($self->elements) {
-      if ((not defined $name) || $child->is($name)) {
-         if (!defined($attr)) {
-            push @retlist, $child;
-         } else {
-            push @retlist, $child if $child->attr_eq($attr, $val);
-         }
-      }
+      push @retlist, $child if $child->_test_item($name, $attr, $val);
       push @retlist, $child->all ($name, $attr, $val);
    }
    return @retlist;
@@ -889,26 +890,62 @@ sub all {
 
 =head2 iter
 
-Returns the same list, but as a lazy iterator.
+Returns the same list, but as a lazy iterator. Modifying the tree's structure
+while you're moving around in it will probably confuse the iterator, so... don't do that.
+
+=cut
+
+sub _sib_after {
+   my $self = shift;
+   return undef unless $self->{parent};
+   my @sibs = $self->{parent}->elements;
+   while (my $check = shift @sibs) {
+      last if $check == $self;
+   }
+   return undef unless @sibs;
+   $sibs[0];
+}
+   
+sub _iter_next {
+   my $self = shift;
+   my $stop = shift;
+   my $first = $self->first;
+   return $first if defined $first;
+   SEARCH_UP:
+   return undef unless $self->{parent};
+   return undef if defined $stop and $self == $stop;
+   my $next_sib = $self->_sib_after;
+   return $next_sib if defined $next_sib;
+   $self = $self->{parent};
+   goto SEARCH_UP;
+}
+
+sub iter {
+   my ($self, $name, $attr, $val) = @_;
+   my $cursor = $self->first;
+   return sub {
+      return undef if $cursor == $self or not defined $cursor;
+      AGAIN:
+      my $retval = $cursor->_test_item ($name, $attr, $val) ? $cursor : undef;
+      $cursor = $cursor->_iter_next($self);
+      return $retval if defined $retval;
+      return $retval if $cursor == $self or not defined $cursor;
+      goto AGAIN;
+   };
+}
 
 =head2 first
 
-Returns the first XML element that meets the search criteria.
+Returns the first XML element (i.e. non-node thing) that meets the search criteria.
 
 =cut
 
 sub first {
    my ($self, $name, $attr, $val) = @_;
    foreach my $child ($self->children) {
-      next unless ref($child);
+      next unless ref($child) and reftype($child) ne 'SCALAR';
       next if ref($child) eq 'CODE';
-      if ((not defined $name) || $child->is($name)) {
-         if (not defined $attr) {
-            return $child;
-         } else {
-            return $child if $child->attr_eq($attr, $val);
-         }
-      }
+      return $child if $child->_test_item($name, $attr, $val);
       my $ret = $child->first ($name, $attr, $val);
       return $ret if defined $ret;
    }
