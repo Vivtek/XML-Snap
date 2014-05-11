@@ -5,6 +5,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use XML::Parser;
+use Scalar::Util qw(reftype);
 use Carp;
 
 =head1 NAME
@@ -23,7 +24,7 @@ our $VERSION = '0.01';
 =head1 SYNOPSIS
 
 XML::Snap is a quick and relatively modern way to work with XML. If, like me, you have little patience for the endless reams of standards
-the XML community burdens you with, maybe you'll like it too! If you want to maintain compatibility with normal people, though, and you want
+the XML community burdens you with, maybe this is the module for you. If you want to maintain compatibility with normal people, though, and you want
 to avoid scaling problems later, you're probably better off sitting down and understanding XML::LibXML and the SAX ecosystem.
 
 The other large omission from the model at present is namespaces. If you use namespaces (and honestly, most applications do) then again, you
@@ -45,7 +46,6 @@ Right at the moment, a streaming mode (like SAX) is also not provided, but it's 
 I<will> be preserved, but not available to the user until further notice. But since streaming has not yet been implemented, that's kind of moot.
 Streaming will be implemented in a separate module, probably to be named XML::Skim.
 
-
 Some examples!
 
    use XML::Snap;
@@ -62,7 +62,7 @@ Some examples!
 
 The C<new> function just creates a new, empty XML node, simple as that. It has a name and optional attributes with values.
 Note that the order of attributes will be retained. Duplicates are not permitted (storage is in a hash); this departs from the XML
-model so it might cause you troubles - I know I've never personally encountered XML where it would make a difference.
+model so it might cause you troubles - but I know I've never personally encountered XML where it would make a difference.
 
 =cut
 
@@ -77,9 +77,11 @@ sub new {
 	  children=>[]}, $class);
 }
 
-=head2 parse (string)
+=head2 parse (string), parse_with_refs (string)
 
 The C<parse> function uses the Expat parser wrapped in XML::Parse to parse the string supplied, building a tree from it.
+If you want text to be blessed scalar refs instead of just strings, use C<parse_with_refs>. (This can be easier, depending
+on what you're going to do with the data structure later.)
 
 =cut
 
@@ -101,7 +103,7 @@ sub _prepare_parser {
 	     },
 		 Char => sub {
             my ($p, $str) = @_;
-            $s->{output}->add($str) if defined $s->{output}; # Note that plain text not enclosed in nodes will be lost. I'm OK with that.
+            $s->{output}->add($s->{refs} ? \$str : $str) if defined $s->{output}; # Note that plain text not enclosed in nodes will be lost. I'm OK with that.
 		 }
 	 }
    );
@@ -110,7 +112,15 @@ sub _prepare_parser {
 sub parse {
    my ($whatever, $string) = @_;
    
-   my $stash = {};
+   my $stash = {refs=>0};
+   my $parser = _prepare_parser($stash);
+   $parser->parse ($string);
+   return $stash->{output};
+}
+sub parse_with_refs {
+   my ($whatever, $string) = @_;
+   
+   my $stash = {refs=>1};
    my $parser = _prepare_parser($stash);
    $parser->parse ($string);
    return $stash->{output};
@@ -339,6 +349,45 @@ sub attr_order {
    $self->{attrs} = \@list;
 }
 
+=head1 WORKING WITH PLAIN TEXT CONTENT
+
+Depending on your needs, XML::Snap can store plain text embedded in an XML structure as simple strings,
+or as scalar references blessed to XML::Snap. Since text may therefore I<not> be blessed, you need
+to handle it with care unless you're sure it's all references (by parsing with C<parse_with_refs>,
+for instance).
+
+=head2 is_text
+
+Returns a flag whether a given thing is text or not. "Text" means a scalar or a scalar reference; 
+anything else will not be considered text.
+
+This is a class method or an instance method - note that if you're using it as an instance method
+and you try to call it on a string, your call will die.
+
+=cut
+
+sub is_text {
+   my $thing = shift;
+   my $text = shift || $thing;
+   return 1 unless ref($text);
+   reftype ($text) eq 'SCALAR';
+}
+
+=head2 get_text
+
+Returns the actual text of either a string (which is obviously just the string) or a scalar reference.
+Again, can be called as an instance method if you're sure it's an instance.
+
+=cut
+
+sub get_text {
+   my $thing = shift;
+   my $text = shift || $thing;
+   return $text unless ref $text;
+   return undef unless reftype ($text) eq 'SCALAR';
+   return $$text;
+}
+
 =head1 WORKING WITH XML STRUCTURE
 
 =head2 add, add_pretty
@@ -362,6 +411,12 @@ for example for writing XML structures extracted from database queries.
 When adding a node that is already a child of another node, the source node will be copied into the target, not just
 added.  (Otherwise confusion could ensue!)
 
+Text is normally added as a simple string, but this can cause problems for consumers, as the output of an
+iterator might then return a mixture of unblessed strings and blessed nodes, so you end up having to test for
+blessedness when processing them. For ease of use, you can also add a I<reference> to a string; it will work
+the same in terms of neighboring strings being coalesced, but they'll be stored as blessed string references.
+Then, use is_text or is_node to determine what each element is when iterating through structure.
+
 =cut
 
 sub add {
@@ -370,13 +425,27 @@ sub add {
       my $r = ref $child;
       if (!$r) {
          my $last = ${$self->{children}}[-1];
-         if (defined $last and !ref $last) {
-            ${$self->{children}}[-1] = $last . $child;
+         if (defined $last and is_text($last)) {
+            if (ref $last eq '') {
+               ${$self->{children}}[-1] = $last . $child;
+            } else {
+               $$last .= $child;
+            }
          } else {
             push @{$self->{children}}, $child;
          }
       } elsif ($r eq 'CODE') {
          push @{$self->{children}}, $child;
+      } elsif ($r eq 'SCALAR') {
+         my $copy = $child;
+         bless $copy, ref $self;
+         my $last = ${$self->{children}}[-1];
+         if (defined $last and is_text($last)) {
+            $$copy = get_text($last) . $$copy;
+            ${$self->{children}}[-1] = $copy;
+         } else {
+            push @{$self->{children}}, $copy;
+         }
       } elsif ($child->can('parent')) {
          $child = $child->copy if defined $child->parent;
          $child->{parent} = $self;
@@ -459,8 +528,8 @@ The C<elements> method returns only those children that are elements, omitting t
 =cut
 
 sub children { @{$_[0]->{children}} }
-sub elements { defined $_[1] ? grep { ref $_ && $_->can('is') && $_->is($_[1]) } @{$_[0]->{children}}
-                             : grep { ref $_ && $_->can('parent') }              @{$_[0]->{children}}
+sub elements { defined $_[1] ? grep { ref $_ && reftype($_) ne 'SCALAR' && $_->can('is') && $_->is($_[1]) } @{$_[0]->{children}}
+                             : grep { ref $_ && reftype($_) ne 'SCALAR' && $_->can('parent') }              @{$_[0]->{children}}
              }
 
 =head1 STRING/FILE OUTPUT
@@ -483,6 +552,9 @@ sub _stringchild {
    my $child = shift;
    
    return $self->escape ($child) unless ref $child;
+   if (reftype ($child) eq 'SCALAR') {
+      return $self->escape ($$child);
+   }
    if (ref $child eq 'CODE') {
       my $generator = $child->($self);
       my @genreturn = ();
@@ -592,7 +664,7 @@ sub rawcontent {
 }
 
 
-=head2 writefile
+=head2 write
 
 Given a filename, an optional prefix to write to the file, writes the XML
 to a file.
