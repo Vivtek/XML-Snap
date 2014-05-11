@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 15;
+use Test::More tests => 22;
 
 use XML::Snap;
 
@@ -38,3 +38,24 @@ is ($a4, $p);
 
 $a5 = $this3->root;
 is ($a5, $xml);
+
+$this2 = $xml->first ('this2');
+$this2->detach;
+is ($this2->parent, undef);
+is ($this2->string, "<this2/>");
+is ($xml->string, '<test2><this><this3/></this></test2>');
+
+$this = $xml->first ('this');
+$this->replacecontent (XML::Snap->new('hi'), XML::Snap->new('there'));
+is ($xml->string, '<test2><this><hi/><there/></this></test2>');
+
+$source = XML::Snap->parse ('<source><another/><test/></source>');
+$this->replacecontent_from ($source);
+is ($xml->string, '<test2><this><another/><test/></this></test2>');
+
+$another = $xml->first ('another');
+$another->replace (XML::Snap->new('hi'), XML::Snap->new('there'));
+is ($xml->string, '<test2><this><hi/><there/><test/></this></test2>');
+
+$this->replace(XML::Snap->new('that'));
+is ($xml->string, '<test2><that/></test2>');

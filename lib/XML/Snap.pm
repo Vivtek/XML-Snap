@@ -175,9 +175,34 @@ sub ancestor {
    return $p->ancestor($name);
 }
 
+=head2 delete
+
+Deletes a child from a node. Pass the actual reference to the child - or if you're using non-referenced text, the text itself.
+(In this case, duplicate text will all be deleted.)
+
+=cut
+
+sub delete {
+   my $self = shift;
+   my $child = shift;
+   my @children = $self->children;
+   my @new_list = grep {$_ != $child} $self->children;
+   $self->{children} = \@new_list;
+}
+
 =head2 detach
 
-Detaches the node from its parent, if it is attached.
+Detaches the node from its parent, if it is attached. This not only removes the parent reference, but also removes the child
+from its parent's list of children.
+
+=cut
+
+sub detach {
+   my $self = shift;
+   return unless $self->{parent};
+   $self->{parent}->delete($self);
+   $self->{parent} = undef;
+}
 
 
 =head1 WORKING WITH ATTRIBUTES
@@ -415,13 +440,27 @@ sub prepend {
       my $r = ref $child;
       if (!$r) {
          my $first = ${$self->{children}}[0];
-         if (defined $first and !ref $first) {
-            ${$self->{children}}[-1] = $child . $first;
+         if (defined $first and istext($first)) {
+            if (ref $first eq '') {
+               ${$self->{children}}[0] = $child . $first;
+            } else {
+               $$first = $child . $$first;
+            }
          } else {
             unshift @{$self->{children}}, $child;
          }
       } elsif ($r eq 'CODE') {
          unshift @{$self->{children}}, $child;
+      } elsif ($r eq 'SCALAR') {
+         my $copy = $child;
+         bless $copy, ref $self;
+         my $first = ${$self->{children}}[0];
+         if (defined $first and istext($first)) {
+            $$copy = $$copy . gettext($first);
+            ${$self->{children}}[0] = $copy;
+         } else {
+            unshift @{$self->{children}}, $copy;
+         }
       } elsif ($child->can('parent')) {
          $child = $child->copy if defined $child->parent;
          $child->{parent} = $self;
@@ -433,7 +472,7 @@ sub prepend_pretty {
    my $self = shift;
    $self->prepend ("\n") if (!@{$self->{children}});
    foreach my $child (reverse @_) {
-      $self->prepend ($child, "\n");
+      $self->prepend ("\n", $child);
    }
 }
 
@@ -442,6 +481,10 @@ sub prepend_pretty {
 The C<replacecontent> method first deletes the node's children, then calls C<add> to add its parameters.
 Use C<replacecontent_from> to use the I<children> of the first parameter, with optional matches to effect
 filtration as the rest of the parameters.
+
+These are holdovers from my old xmlapi C library, where I was using in-memory XML structures as
+"bags of data". Since Perl is basically built on bags of data to start with, I'm not sure these will
+ever get used in a real situation (certainly I've never needed them yet in Perl).
 
 =cut
 
@@ -462,6 +505,22 @@ sub replacecontent_from {
 The C<replace> method is a little odd; it actually acts on the given node's I<parent>, by replacing the callee
 with the passed parameters. In other words, the parent's children list is modified directly. If there's nothing
 provided as a replacement, this simply deletes the callee from its parent's child list.
+
+=cut
+
+sub replace {
+   my $self = shift;
+   my $parent = $self->{parent};
+   return unless $parent;
+   my @children = @{$parent->{children}};
+   my $index = 0;
+   my $count = scalar @children;
+   $index++ until $children[$index] == $self or $index == $count;
+   return if $index == $count;
+   splice @children, $index, 1, @_;
+   $parent->{children} = \@children;
+}
+         
 
 =head2 children, elements
 
