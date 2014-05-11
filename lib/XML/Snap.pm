@@ -858,11 +858,83 @@ Finally, there are searching and bookmarking functions for finding and locating 
 
 =head2 getloc
 
-Retrieves a location for a given node in its tree, effectively a bookmark.
+Retrieves a location for a given node in its tree, effectively a bookmark. The rules are simple.
+The bookmark consists of a set of dotted pairs, each being the name of the tag plus a disambiguator
+if necessary. If the tag is the first of its sibs with its own tag, no disambiguator is necessary.
+If the tag has an attribute named 'id' that doesn't have a dot or square brackets in it, then
+square brackets surrounding that value are used as the disambiguator. Otherwise, a number in
+parentheses identifies the sequence of the tag within the list of siblings with its own tag name.
+
+So C<mytag[one]> matches C<mytag id="one"> and C<mytag(1)> matches the second 'mytag' in its
+parent's list of elements. C<mytag[one].next(3)> matches the fourth 'next' in C<mytag id="one">.
+
+This is essentially a much simplified XMLpath (I may be wrong, but I think I came up with it
+before XMLpaths had been defined). It's quick and dirty, but works.
+
+=cut
+
+sub getloc {
+   my $self = shift;
+   my $parent = $self->parent;
+   return '' unless $parent;
+   my $ploc = $self->parent->getloc;
+   $ploc .= '.' if $ploc;
+
+   my $name = $self->name;
+   my $id = $self->get('id');
+   if (defined $id and not $id =~ /[\.\[\]]/) {
+      my $t = $name . "[$id]";
+      my $try = $parent->loc($t);
+      return $ploc . $t if $try == $self;
+   }
+   my $try = $parent->first($name);
+   return $ploc . $name if $try == $self;
+   my $count = 0;
+   foreach my $try ($parent->elements($name)) {
+      return $ploc . "$name($count)" if $try == $self;
+      $count++;
+   }
+   # We shouldn't ever get here; returns undef but we might consider croaking.
+}
+
 
 =head2 loc
 
 Given such a bookmark and the tree it pertains to, finds the bookmarked node.
+
+=cut
+
+sub loc {
+   my $self = shift;
+   my $l = shift;
+   return $self unless $l;
+   if ($l =~ /\./) {
+      @_ = (split (/\s*\.\s*/, $l), @_);
+      $l = shift;
+   }
+   my $target;
+   if ($l =~ /\s*(.*)\s*\[(.*)\]\s*/) {
+      my ($tag, $id) = ($1, $2);
+      foreach my $child ($self->elements($tag)) {
+         if ($child->attr_eq ('id', $id)) {
+            $target = $child;
+            last;
+         }
+      }
+   } elsif ($l =~ /(.*)\((\d*)\)\s*/) {
+      my ($tag, $count) = ($1, $2);
+      foreach my $child ($self->elements($tag)) {
+         $target = $child unless $count;
+         $count--;
+      }
+   } else {
+      my @children = $self->elements($l);
+      $target = $children[0] if @children;
+   }
+   return undef unless defined $target;
+   return $target unless @_;
+   $target->loc(@_);
+}
 
 =head2 all
 
