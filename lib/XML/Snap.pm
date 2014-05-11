@@ -179,63 +179,6 @@ sub ancestor {
 
 Detaches the node from its parent, if it is attached.
 
-=head2 copy, copy_from, filter
-
-The C<copy> method copies out a new node (recursively) that is independent, i.e. has no parent.
-If you give it some matches of the form [name, key, value, coderef], then the coderef will be
-called on the copy before it gets added, if the copy matches the match.
-If a match is just a coderef, it'll apply to all text instead.
-
-C<filter> is just an alias that's a little more self-documenting.
-
-=cut
-
-sub filter { my $self = shift; $self->copy(@_); }
-sub copy {
-   my $self = shift;
-
-   my $ret = new ($self->name);
-   foreach my $key ($self->attrs) {
-      $ret->set ($key, $self->get ($key));
-   }
-   
-   $ret->copy_from ($self, @_);
-   return $ret;
-}
-sub copy_from {
-   my $self = shift;
-   my $other = shift;
-   
-   foreach my $child ($other->children) {
-      if (ref $child eq 'CODE') {
-         $self->add ($child);
-      } elsif (not ref $child) {
-         my $child_copy = $child;
-         foreach (@_) {
-            if (ref $_ eq 'CODE') {
-               $child_copy = $_->($child_copy);
-            }
-         }
-         $self->add ($child_copy);
-      } else {
-         my $child_copy = $child->copy(@_);
-         foreach (@_) {
-            if (ref $_ eq 'ARRAY') {
-               my @match = @$_;
-               if (not defined $match[0] or $child_copy->is($match[0])) {
-                  if (not defined $match[1] or $child->copy->get($match[1]) eq $match[2]) {
-                     $child_copy = $match[3]->($child_copy);
-                  }
-               }
-            }
-         }
-         $self->add ($child_copy);
-      }
-   }
-
-   return $self;
-}
-
 
 =head1 WORKING WITH ATTRIBUTES
 
@@ -531,6 +474,77 @@ sub children { @{$_[0]->{children}} }
 sub elements { defined $_[1] ? grep { ref $_ && reftype($_) ne 'SCALAR' && $_->can('is') && $_->is($_[1]) } @{$_[0]->{children}}
                              : grep { ref $_ && reftype($_) ne 'SCALAR' && $_->can('parent') }              @{$_[0]->{children}}
              }
+
+=head1 COPYING AND TRANSFORMATION
+
+=head2 copy, copy_from, filter
+
+The C<copy> method copies out a new node (recursively) that is independent, i.e. has no parent.
+If you give it some matches of the form [name, key, value, coderef], then the coderef will be
+called on the copy before it gets added, if the copy matches the match.
+If a match is just a coderef, it'll apply to all text instead.
+
+C<filter> is just an alias that's a little more self-documenting.
+
+Note that the transformations specified will I<not> fire for the root node you're copying,
+just its children.
+
+=cut
+
+sub filter { my $self = shift; $self->copy(@_); }
+sub copy {
+   my $self = shift;
+
+   my $ret = XML::Snap->new ($self->name);
+   foreach my $key ($self->attrs) {
+      $ret->set ($key, $self->get ($key));
+   }
+   
+   $ret->copy_from ($self, @_);
+   return $ret;
+}
+sub copy_from {
+   my $self = shift;
+   my $other = shift;
+   
+   foreach my $child ($other->children) {
+      if (ref $child eq 'CODE') {
+         $self->add ($child);
+      } elsif (not ref $child) {
+         my $child_copy = $child;
+         foreach (@_) {
+            if (ref $_ eq 'CODE') {
+               $child_copy = $_->($child_copy);
+            }
+         }
+         $self->add ($child_copy);
+      } elsif (reftype $child eq 'SCALAR') {
+         my $child_copy = $$child;
+         foreach (@_) {
+            if (ref $_ eq 'CODE') {
+               $child_copy = $_->($child_copy);
+            }
+         }
+         $self->add (\$child_copy);
+      } else {
+         my $child_copy = $child->copy(@_);
+         foreach (@_) {
+            if (ref $_ eq 'ARRAY') {
+               my @match = @$_;
+               if (not defined $match[0] or $child_copy->is($match[0])) {
+                  if (not defined $match[1] or $child->copy->get($match[1]) eq $match[2]) {
+                     $child_copy = $match[3]->($child_copy);
+                  }
+               }
+            }
+         }
+         $self->add ($child_copy);
+      }
+   }
+
+   return $self;
+}
+
 
 =head1 STRING/FILE OUTPUT
 
