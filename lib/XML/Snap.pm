@@ -798,26 +798,6 @@ sub write {
 }
 
 
-=head2 write_UCS2LE ($filename)
-
-Given a filename, opens it with :raw:encoding(UCS-2LE):crlf:utf8 and writes an 0xFEFF byte order marker at the outset.
-This is used by TRADOS TTX files, which is why it's here; it might be useful for other things, but if so, I have yet to discover them.
-
-=cut
-
-sub write_UCS2LE {
-   my ($self, $fname) = @_;
-
-   my $file;
-   open $file, ">:raw:encoding(UCS-2LE):crlf:utf8", $fname or croak $!;
-   print $file "\x{FEFF}";  # This is the byte order marker; Perl would do this for us, apparently, if we hadn't
-                            # explicitly specified the UCS-2LE encoding.
-   print $file "<?xml version='1.0'?>\n";
-   $self->writestream($file);
-   close $file;
-}
-
-
 =head2 writestream
 
 Writes the XML to an open stream.
