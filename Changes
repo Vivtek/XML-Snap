@@ -4,3 +4,6 @@ Revision history for perl module XML::Snap
 
  - Second version, but the first implementing the whole API I planned for CPAN release
 
+0.02 2014-05-12
+
+ - Ten minutes after posting to CPAN, found cases I hadn't tested
