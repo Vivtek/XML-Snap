@@ -7,7 +7,7 @@ t/00-load.t
 t/01-self.t
 t/02-parent.t
 t/03-attributes.t
-t/04 - write.t
+t/04-write.t
 t/05-search.t
 t/06-text.t
 t/07-copying.t

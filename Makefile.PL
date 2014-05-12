@@ -18,7 +18,7 @@ WriteMakefile(
         'Test::More' => 0,
     },
     PREREQ_PM => {
-        'Scalar::Utils'              => 0,
+        'Scalar::Util'              => 0,
     },
     META_MERGE => {
         'meta-spec' => { version => 2 },
