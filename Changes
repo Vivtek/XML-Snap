@@ -1,5 +1,6 @@
-Revision history for XML-Snap
+Revision history for perl module XML::Snap
 
-0.01    Date/time
-        First version, released on an unsuspecting world.
+0.01 2014-05-12
+
+ - Second version, but the first implementing the whole API I planned for CPAN release
 
