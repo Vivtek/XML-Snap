@@ -7,6 +7,7 @@ use warnings FATAL => 'all';
 use XML::Parser;
 use Scalar::Util qw(reftype refaddr);
 use Carp;
+#use Data::Dumper;
 
 =head1 NAME
 
@@ -155,6 +156,36 @@ use overload ('""' => sub { $_[0]->name . '(' . ref($_[0]) . ':' . refaddr($_[0]
               '==' => sub { defined(refaddr($_[0])) and defined(refaddr($_[1])) and refaddr($_[0]) eq refaddr($_[1]) },
               'eq' => sub { refaddr($_[0]) eq refaddr($_[1]) },
               '!=' => sub { refaddr($_[0]) ne refaddr($_[1]) });
+              
+=head2 oob(key, value), unoob(key)
+
+Sets/gets an out-of-band (OOB) value on a node. This isn't anything special, just a hash
+attached to each node, but it can be used by a template output for parameterization,
+and it doesn't affect the output or actions of the XML in any other way.
+
+If a value isn't set in a given node, it will ask its parent.
+
+Call C<unoob($key)> to remove an OOB value, or C<unoob()> to remove all OOB values on a node.
+
+=cut
+
+sub oob {
+   my ($self, $key, $value) = @_;
+
+   $self->{oob}->{$key} = $value if defined $value;
+   $value = $self->{oob}->{$key};
+   return $value if defined $value;
+   return undef unless defined $self->{parent};
+   return $self->{parent}->oob($key);
+}
+sub unoob {
+   my ($self, $key) = @_;
+   if (defined $key) {
+      undef $self->{oob}->{$key};
+   } else {
+      undef $self->{oob};
+   }
+}
 
 =head2 parent, ancestor, root
 
@@ -673,10 +704,10 @@ sub _stringchild {
    }
    if (ref $child eq 'CODE') {
       my $generator = $child->($self);
-      my @genreturn = ();
+      my @genreturn;
       my $ret = '';
       do {
-         @genreturn = $generator->($self);
+         @genreturn = grep { defined $_ } ($generator->($self));
          foreach my $return (@genreturn) {
             $ret .= $self->_stringchild($return);
          }
@@ -721,7 +752,7 @@ sub _rawstringchild {
       my @genreturn = ();
       my $ret = '';
       do {
-         @genreturn = $generator->($self);
+         @genreturn = grep { defined $_ } ($generator->($self));
          foreach my $return (@genreturn) {
             $ret .= $self->_rawstringchild($return);
          }
@@ -818,9 +849,9 @@ sub _streamchild {
       my @genreturn = ();
       my $ret = '';
       do {
-         @genreturn = $generator->($self);
+         @genreturn = grep { defined $_ } ($generator->($self));
          foreach my $return (@genreturn) {
-            $self->_streamchild($return);
+            $self->_streamchild($return, $file);
          }
       } while (@genreturn);
       return;
