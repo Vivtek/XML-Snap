@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 6;
+use Test::More tests => 3;
 
 use XML::Snap;
 
@@ -29,10 +29,10 @@ is ($list0[1]->get('id'), 4);
 unlink 'test.xml';
 
 
-$xml->write_UCS2LE ('test.xml');
-$xml2 = XML::Snap->load ('test.xml');
-isa_ok ($xml2, 'XML::Snap');
-@list0 = $xml->elements ('element');
-is (@list0, 3);
-is ($list0[1]->get('id'), 4);
-unlink 'test.xml';
+#$xml->write_UCS2LE ('test.xml');
+#$xml2 = XML::Snap->load ('test.xml');
+#isa_ok ($xml2, 'XML::Snap');
+#@list0 = $xml->elements ('element');
+#is (@list0, 3);
+#is ($list0[1]->get('id'), 4);
+#unlink 'test.xml';
