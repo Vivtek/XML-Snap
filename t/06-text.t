@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests=>30;
+use Test::More tests=>35;
 use XML::Snap;
 use Data::Dumper;
 
@@ -33,10 +33,16 @@ is (@list1, 2);
 is (ref($list0[0]), 'XML::Snap');
 ok ($list0[0]->istext);
 ok (not $list0[1]->istext);
-is ($list0[0]->gettext, "\nThis is a rather typical example of the use of XML\nfor ");
+$exp_text = "\nThis is a rather typical example of the use of XML\nfor ";
+is ($list0[0]->gettext, $exp_text);
 is ($list0[0]->name, '');
 ok (not $list0[0]->is('tag'));
 is ($list0[0]->parent, undef);
+is ($list0[0]->children, ());
+is ($list0[0]->string, $exp_text);
+is ($list0[0]->rawstring, $exp_text);
+is ($list0[0]->content, $exp_text);
+is ($list0[0]->rawcontent, $exp_text);
 
 is ($xml2->string . "\n", $text);
 

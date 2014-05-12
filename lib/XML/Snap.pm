@@ -300,7 +300,7 @@ The C<attrs> method retrieves a list of the attributes set.
 
 =cut
 
-sub attrs { @{$_[0]->{attrs}} }
+sub attrs { reftype($_[0]) eq 'HASH' ? @{$_[0]->{attrs}} : () }
 
 =head2 getlist (attribute list)
 
@@ -603,8 +603,9 @@ The C<elements> method returns only those children that are elements, omitting t
 
 =cut
 
-sub children { @{$_[0]->{children}} }
-sub elements { defined $_[1] ? grep { ref $_ && reftype($_) ne 'SCALAR' && $_->can('is') && $_->is($_[1]) } @{$_[0]->{children}}
+sub children { reftype($_[0]) eq 'HASH' ? @{$_[0]->{children}} : () }
+sub elements { return () unless reftype($_[0]) eq 'HASH';
+               defined $_[1] ? grep { ref $_ && reftype($_) ne 'SCALAR' && $_->can('is') && $_->is($_[1]) } @{$_[0]->{children}}
                              : grep { ref $_ && reftype($_) ne 'SCALAR' && $_->can('parent') }              @{$_[0]->{children}}
              }
 
@@ -719,7 +720,7 @@ sub _stringchild {
 
 sub string {
    my $self = shift;
-
+   return $$self if reftype($self) eq 'SCALAR';
    my $ret = '';
 
    $ret .= "<" . $self->name;
@@ -766,6 +767,7 @@ sub _rawstringchild {
 }
 sub rawstring {
    my $self = shift;
+   return $$self if reftype($self) eq 'SCALAR';
 
    my $ret = '';
 
@@ -796,6 +798,7 @@ These do the same, but don't include the parent tag or its closing tag in the st
 
 sub content {
    my $self = shift;
+   return $$self if reftype($self) eq 'SCALAR';
    
    my $ret = '';
    foreach my $child ($self->children) {
@@ -805,6 +808,7 @@ sub content {
 } # Boy, that's simpler than in the xmlapi version...
 sub rawcontent {
    my $self = shift;
+   return $$self if reftype($self) eq 'SCALAR';
    
    my $ret = '';
    foreach my $child ($self->children) {
