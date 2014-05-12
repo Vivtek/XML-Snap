@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests=>25;
+use Test::More tests=>27;
 use XML::Snap;
 use Data::Dumper;
 
@@ -21,6 +21,8 @@ is (@list1, 2);
 
 is (ref($list0[0]), '');
 
+is ($xml->string . "\n", $text);
+
 $xml2 = XML::Snap->parse_with_refs ($text);
 
 @list0 = $xml2->children ();
@@ -32,6 +34,8 @@ is (ref($list0[0]), 'XML::Snap');
 ok ($list0[0]->istext);
 ok (not $list0[1]->istext);
 is ($list0[0]->gettext, "\nThis is a rather typical example of the use of XML\nfor ");
+
+is ($xml2->string . "\n", $text);
 
 $xml->bless_text;
 @list0 = $xml->children ();
