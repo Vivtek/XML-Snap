@@ -15,11 +15,11 @@ XML::Snap - Makes simple XML tasks a snap!
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 
 =head1 SYNOPSIS
@@ -149,8 +149,8 @@ the C<is> method tests for equality to a given string (it's just a convenience f
 
 =cut
 
-sub name { $_[0]->{name} }
-sub is   { $_[0]->{name} eq $_[1] }
+sub name { reftype($_[0]) eq 'HASH' ? $_[0]->{name} : '' }
+sub is   { reftype($_[0]) eq 'HASH' ? $_[0]->{name} eq $_[1] : 0 }
 
 use overload ('""' => sub { $_[0]->name . '(' . ref($_[0]) . ':' . refaddr($_[0]) . ')' },
               '==' => sub { defined(refaddr($_[0])) and defined(refaddr($_[1])) and refaddr($_[0]) eq refaddr($_[1]) },
@@ -193,7 +193,7 @@ C<parent> returns the node's parent, if it has been attached to a parent, while 
 don't give a tag. C<root> is provided as a shorthand for ancestor().
 
 =cut
-sub parent {$_[0]->{parent} }
+sub parent { reftype($_[0]) eq 'HASH' ? $_[0]->{parent} : undef }
 sub root { $_[0]->ancestor }
 sub ancestor {
    my ($self, $name) = @_;
