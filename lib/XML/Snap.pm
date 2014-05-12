@@ -747,6 +747,9 @@ sub _rawstringchild {
    my $child = shift;
    
    return $child unless ref $child;
+   if (reftype ($child) eq 'SCALAR') {
+      return $$child;
+   }
    if (ref $child eq 'CODE') {
       my $generator = $child->($self);
       my @genreturn = ();
