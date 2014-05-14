@@ -15,6 +15,7 @@ t/08-scratch.t
 t/09-loc.t
 t/10-strings.t
 t/11-templating.t
+t/12-walk.t
 t/manifest.t
 t/pod-coverage.t
 t/pod.t

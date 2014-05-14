@@ -15,11 +15,11 @@ XML::Snap - Makes simple XML tasks a snap!
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 
 =head1 SYNOPSIS
@@ -1020,52 +1020,104 @@ sub all {
    return @retlist;
 }
 
+=head1 WALKING THE TREE
 
-=head2 iter
+XML is a tree structure, and what do we do with trees? We walk them!
 
-Returns the same list, but as a lazy iterator. Modifying the tree's structure
-while you're moving around in it will probably confuse the iterator, so... don't do that.
+A walker is an iterator that visits each node in turn, then its children, one by one. Walkers come in two flavors:
+full walk or element walk; the element walk ignores text.
+
+The walker constructor optionally takes a closure that will be called on each node before it's returned; the return
+from that closure will be what's returned. If it returns undef, the walk will skip that node and go on with the
+walk in the same order that it otherwise would have; if it returns a list of C<(value, 'prune')> then the walk will
+not visit that node's children, and "value" will be taken as the return value (and it can obviously be undef as well).
 
 =cut
 
-sub _sib_after {
-   my $self = shift;
-   return undef unless $self->{parent};
-   my @sibs = $self->{parent}->elements;
-   while (my $check = shift @sibs) {
-      last if $check == $self;
-   }
-   return undef unless @sibs;
-   $sibs[0];
-}
-   
-sub _iter_next {
-   my $self = shift;
-   my $stop = shift;
-   my $first = $self->first;
-   return $first if defined $first;
-   SEARCH_UP:
-   return undef unless $self->{parent};
-   return undef if defined $stop and $self == $stop;
-   my $next_sib = $self->_sib_after;
-   return $next_sib if defined $next_sib;
-   $self = $self->{parent};
-   goto SEARCH_UP;
+=head2 walk
+
+C<walk> is the complete walk. It returns an iterator.  Pass it a closure to be called on each node as it's visited.
+Modifying the tree's structure is entirely fine as long as you're just manipulating the children of the current node;
+if you do other things, the walker might get confused.
+
+=cut
+
+sub walk {
+    my $xml = shift;
+    my @coord = ('-');
+    my @stack = ($xml);
+    my $process = shift;
+
+    return sub {
+        my $retval;
+        my $action;
+        AGAIN:
+        return undef unless @stack;
+        if ($coord[-1] eq '-') {
+            ($retval, $action) = $process ? $process->($stack[-1]) : $stack[-1];
+            $coord[-1] = 0;
+            if (defined $action and $action eq 'prune') {
+               $coord[-1] = '*';
+            }
+        } else {
+            my @c = ref $stack[-1] ? $stack[-1]->children : ();
+            if ($coord[-1] eq '*' or $coord[-1] >= @c) {
+                pop @coord;
+                pop @stack;
+                return undef unless @stack;
+                $coord[-1]++;
+                goto AGAIN;
+            }
+            push @stack, $c[$coord[-1]];
+            push @coord, '-';
+            goto AGAIN;
+        }
+        goto AGAIN unless defined $retval;
+        $retval;
+    }
 }
 
-sub iter {
-   my ($self, $name, $attr, $val) = @_;
-   my $cursor = $self->first;
-   return sub {
-      return undef if $cursor == $self or not defined $cursor;
-      AGAIN:
-      my $retval = $cursor->_test_item ($name, $attr, $val) ? $cursor : undef;
-      $cursor = $cursor->_iter_next($self);
-      return $retval if defined $retval;
-      return $retval if $cursor == $self or not defined $cursor;
-      goto AGAIN;
-   };
+=head2 walk_elem
+
+For the sake of convenience, C<walk_elem> does the same thing, except it only visits nodes, not text.
+
+=cut
+
+sub walk_elem {
+    my $xml = shift;
+    my @coord = ('-');
+    my @stack = ($xml);
+    my $process = shift;
+
+    return sub {
+        my $retval;
+        my $action;
+        AGAIN:
+        return undef unless @stack;
+        if ($coord[-1] eq '-') {
+            ($retval, $action) = $process ? $process->($stack[-1]) : $stack[-1];
+            $coord[-1] = 0;
+            if (defined $action and $action eq 'prune') {
+               $coord[-1] = '*';
+            }
+        } else {
+            my @c = ref $stack[-1] ? $stack[-1]->elements : ();
+            if ($coord[-1] eq '*' or $coord[-1] >= @c) {
+                pop @coord;
+                pop @stack;
+                return undef unless @stack;
+                $coord[-1]++;
+                goto AGAIN;
+            }
+            push @stack, $c[$coord[-1]];
+            push @coord, '-';
+            goto AGAIN;
+        }
+        goto AGAIN unless defined $retval;
+        $retval;
+    }
 }
+
 
 =head2 first
 

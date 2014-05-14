@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 19;
+use Test::More tests => 16;
 
 use XML::Snap;
 use Data::Dumper;
@@ -51,12 +51,4 @@ is ($list3[1]->get('id'), 7);
 is (@list4, 1);
 is ($list4[0]->get('id'), 4);
 
-
-my $iter = $xml->iter (undef, 'attribute', 'aaa');
-$test = $iter->();
-is ($test->get('id'), 4);
-$test = $iter->();
-is ($test->get('id'), 7);
-$test = $iter->();
-is ($test, undef);
 

@@ -7,3 +7,10 @@ Revision history for perl module XML::Snap
 0.02 2014-05-12
 
  - Ten minutes after posting to CPAN, found cases I hadn't tested
+
+0.03 2014-05-14
+
+ - Fixed omission of XML::Parser dependency (thanks, CPANtesters!)
+ - Added walk and walk_elem
+ - Removed iter because walk_elem is a better implementation anyway
+ 

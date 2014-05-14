@@ -19,6 +19,7 @@ WriteMakefile(
     },
     PREREQ_PM => {
         'Scalar::Util'              => 0,
+        'XML::Parser'               => 0,
     },
     META_MERGE => {
         'meta-spec' => { version => 2 },
