@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 3;
+use Test::More tests => 6;
 
 use XML::Snap;
 
@@ -27,6 +27,18 @@ isa_ok ($xml2, 'XML::Snap');
 is (@list0, 3);
 is ($list0[1]->get('id'), 4);
 unlink 'test.xml';
+
+
+# 2014-05-27 - check writing of blessed text (which didn't work this morning, sigh, it's always when I'm in the middle of an actual job that I find these things)
+$xml->bless_text;
+$xml->write ('test.xml');
+$xml2 = XML::Snap->load ('test.xml');
+isa_ok ($xml2, 'XML::Snap');
+@list0 = $xml->elements ('element');
+is (@list0, 3);
+is ($list0[1]->get('id'), 4);
+unlink 'test.xml';
+
 
 
 #$xml->write_UCS2LE ('test.xml');

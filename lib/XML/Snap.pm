@@ -15,11 +15,11 @@ XML::Snap - Makes simple XML tasks a snap!
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 
 =head1 SYNOPSIS
@@ -870,6 +870,10 @@ sub writestream {
    my $self = shift;
    my $file = shift;
 
+   if ($self->istext) {
+      print $file $self->escape ($self->gettext);
+      return;
+   }
    print $file "<" . $self->name;
    foreach ($self->attrs) {
       print $file " $_=\"" . $self->escape($self->get($_)) . "\"";
@@ -1117,6 +1121,17 @@ sub walk_elem {
         $retval;
     }
 }
+
+=head2 walk_all
+
+A simplified walk that simply returns matching nodes.
+
+    my $w = $self->{body}->walk(sub {
+        my $node = shift;
+        return ($node, 'prune') if $node->is('trans-unit'); # Segments are returned whole.
+        return undef; # We don't want the details for anything else, but still walk into its children if it has any.
+    });
+
 
 
 =head2 first

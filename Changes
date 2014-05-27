@@ -14,3 +14,6 @@ Revision history for perl module XML::Snap
  - Added walk and walk_elem
  - Removed iter because walk_elem is a better implementation anyway
  
+0.04 2014-05-27
+
+ - Writing blessed text to files failed. Jeez. Added a test and a fix.
